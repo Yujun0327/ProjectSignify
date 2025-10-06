@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signify</title>
+    <style>
+        video {
+            transform: scaleX(-1); /* Flip the video horizontally */
+            width: 100%; /* Set width as needed */
+            height: auto; /* Maintain aspect ratio */
+        }
+
+        /* Spinner for loading translation */
+        .spinner {
+            border: 4px solid transparent;
+            border-top: 4px solid #f3f3f3;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Hamburger and X styling */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 30px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .hamburger span {
+            display: block;
+            width: 100%;
+            height: 4px;
+            background-color: #fff; /* White bars */
+            transition: transform 0.3s, opacity 0.3s;
+        }
+
+        .hamburger.open span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger.open span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.open span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+
+        /* Side panel */
+        .side-panel {
+            width: 250px;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: -250px;
+            background-color: #4a90e2; /* Bluish color */
+            transition: left 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .side-panel-open {
+            left: 0;
+        }
+
+        .side-panel-content a {
+            display: block;
+            padding: 15px;
+            color: white;
+            text-decoration: none;
+            font-size: 20px;
+        }
+
+        .side-panel-content a:hover {
+            background-color: #357ab7; /* Darker blue on hover */
+        }
+
+        /* Bottom close button styling */
+        .side-panel-close-btn {
+            background-color: transparent;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 24px; /* Icon size */
+            text-align: center;
+            cursor: pointer;
+            width: 100%;
+            margin-top: auto; /* Push the button to the bottom */
+        }
+
+        .side-panel-close-btn:hover {
+            background-color: #357ab7; /* Darker blue on hover */
+        }
+    </style>
+    <link rel="stylesheet" href="static/css/screens/home.css"/>
+</head>
+<body>
+    <div class="top-bar">
+        <!-- Hamburger Menu -->
+        <div class="hamburger" onclick="toggleSidePanel()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <!-- Logo Section -->
+        <div class="top-bar__logo">
+            <img src="static/images/logo.png" alt="Signify Logo" class="top-bar__logo-img" />
+        </div>
+        <!-- Title Section -->
+        <div class="top-bar__title">Signify - Translation Machine</div>
+    </div>
+    
+    
+    
+    <div id="side-panel" class="side-panel">
+        <div class="side-panel-content">
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#learn">Learn</a>
+        </div>
+        <button class="side-panel-close-btn" onclick="toggleSidePanel()">
+            <i class="fa-solid fa-x"></i> <!-- Close icon -->
+        </button>
+    </div>
+
+    <div class="translate-container">
+        <div class="translate-container___column">
+            <label for="language-dropdown">American Sign Language</label>
+        </div>
+    </div>
+
+    <div class="webcam-container">
+        <div class="webcam-container___column">
+            <h2>Webcam</h2>
+            <div class="webcam">
+                <video id="videoElement" autoplay muted playsinline></video>
+            </div>
+            <div class="button-container">
+                <button id="start-button" class="button">Start</button>
+                <button id="stop-button" class="button">Stop</button>
+                <button id="speak-button" class="button">Speak</button> 
+                <button id="clear-button" class="button">Clear</button>
+                <button id="speech-to-asl-button" class="button">Speech to ASL</button> 
+            </div>
+        </div>
+        <div class="translation-output-container">
+            <h2>English</h2>
+            <div id="translation-output" class="translation-output">
+                <!-- Display loading spinner when translating -->
+                <div id="spinner" class="spinner" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="translate-container">
+        <div class="translate-container___column">
+            <img id="displayImage" alt="ASL Image" style="max-width: 100%; height: auto;">
+        </div>
+    </div>
+
+    
+
+    <script>
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const speakButton = document.getElementById('speak-button');
+        const clearButton = document.getElementById('clear-button');
+        const speechToASLButton = document.getElementById('speech-to-asl-button');
+        const video = document.getElementById('videoElement');
+        const translationOutput = document.getElementById('translation-output');
+        const spinner = document.getElementById('spinner');
+        let stream;
+
+        // Access webcam and display the feed
+        async function startWebcam() {
+            if (navigator.mediaDevices.getUserMedia) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    video.srcObject = stream;
+                    video.play();
+                } catch (error) {
+                    console.error("Error accessing webcam:", error);
+                }
+            } else {
+                alert("Webcam not supported in this browser.");
+            }
+        }
+
+        // Stop the webcam
+        function stopWebcam() {
+            if (stream) {
+                let tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+            }
+            video.srcObject = null;
+        }
+
+        async function textCorrection() {
+            try {
+                // Send the request to correct the text from translationOutput
+                const response = await fetch('http://localhost:8000/api/correct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: translationOutput.innerText })
+                });
+
+                const result = await response.json();
+                spinner.style.display = "none"; // Hide spinner when done
+
+                if (response.ok) {
+                    const correctedText = result.corrected_text;
+                    console.log("Corrected Text: ", correctedText);
+                    translationOutput.innerText = `${correctedText}`;
+                } else {
+                    console.error(`Error: ${result.detail}`);
+                }
+            } catch (error) {
+                console.error("Error in text correction request:", error);
+              //  translationOutput.innerText = "Text correction request failed.";
+                spinner.style.display = "none";
+            }
+        }     
+
+        async function stt() {
+            try {
+                // Send the request to correct the text from translationOutput
+                const response = await fetch('http://localhost:8000/api/stt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: ""})
+                });
+
+                if (response.ok) {
+
+                    const data = await response.json();
+                     // 이미지와 텍스트 데이터 처리
+                    const imageUrl = `data:image/png;base64,${data.image_data}`;
+                    document.getElementById("displayImage").src = imageUrl;
+                    translationOutput.innerText = data.text_data;
+
+                } else {
+                    console.error(`Error: ${result.detail}`);
+                    translationOutput.innerText = "aaaaaa"
+
+                }
+            } catch (error) {
+                console.error("Error in text correction request:", error);
+              //  translationOutput.innerText = "Text correction request failed.";
+                translationOutput.innerText = "bbbb"
+
+            }
+        }
+
+
+        // Capture image, encode as base64, and send to FastAPI
+        async function captureAndSendImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            const imageDataUrl = canvas.toDataURL('image/jpeg');
+            const base64Image = imageDataUrl.split(',')[1]; // Strip out "data:image/jpeg;base64,"
+
+            try {
+                spinner.style.display = "inline-block"; // Show spinner during request
+                const response = await fetch('http://localhost:8000/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Image })
+                });
+
+                const result = await response.json();
+                spinner.style.display = "none"; // Hide spinner when done
+                if (response.ok) {
+                    translationOutput.innerText  += `${result.predicted_class}`;
+                } else {
+                    //translationOutput.innerText = `Error: ${result.error}`;
+                }
+            } catch (error) {
+                console.error("Error in prediction request:", error);
+             //   translationOutput.innerText = "Prediction request failed.";
+                spinner.style.display = "none";
+            }
+        }
+
+        startButton.addEventListener('click', () => {
+            startWebcam();
+            setInterval(captureAndSendImage, 1000); // Send an image every 3 seconds
+        });
+
+        stopButton.addEventListener('click', () => {
+            stopWebcam();
+        });
+
+        speakButton.addEventListener('click', () => {
+            textCorrection();
+        });
+
+        clearButton.addEventListener('click', () => {
+            translationOutput.innerText = "";
+        });
+
+        speechToASLButton.addEventListener('click', () => {
+            stt();
+        });
+
+        function toggleSidePanel() {
+            document.getElementById("side-panel").classList.toggle("side-panel-open");
+            const hamburger = document.querySelector(".hamburger");
+            hamburger.classList.toggle("open");
+            if (hamburger.classList.contains("open")) {
+                // Show X icon when side panel is open
+                hamburger.innerHTML = '<i class="fa-solid fa-x"></i>';
+            } else {
+                // Revert to hamburger when side panel is closed
+                hamburger.innerHTML = '<span></span><span></span><span></span>';
+            }
+        }
+    </script>
+
+    <script src="https://kit.fontawesome.com/ca7f97d49d.js" crossorigin="anonymous"></script>
+</body>
+</html>

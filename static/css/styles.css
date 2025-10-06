@@ -1,0 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&display=swap');
+
+@import "reset.css";
+
+/* Screens */
+@import "screens/home.css";
+@import "screens/about.css";
