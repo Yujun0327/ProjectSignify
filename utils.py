@@ -48,13 +48,21 @@ def tts(text):
     # Cleanup: remove the temporary audio file
     os.remove(filename)
 
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except Exception:
+    sd = None
+    print("⚠️ sounddevice not available — skipping audio features")
+
 import speech_recognition as sr
 from scipy.io.wavfile import write
 import numpy as np
 
 def record_audio(duration, filename="temp_audio.wav", fs=44100):
     print("Recording...")
+    if sd is None:
+        raise RuntimeError("Audio recording not supported in this environment")
+
     audio_data = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
     sd.wait()  # Wait until recording is finished
     write(filename, fs, audio_data)  # Save as WAV file
